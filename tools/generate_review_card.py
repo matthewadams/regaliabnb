@@ -271,8 +271,16 @@ def layout_bigquote(d, img, s, th, rng, name, quote, prop, date, url):
 LAYOUTS = [layout_centered, layout_editorial, layout_band, layout_bigquote]
 
 
-def make_card(name, quote, prop, out, seed=None, date="", url="https://regaliabnb.com", colors=24):
+PLATFORM_LABEL = {"airbnb": "Airbnb", "homeaway": "VRBO", "vrbo": "VRBO"}
+
+
+def make_card(name, quote, prop, out, seed=None, date="", url="https://regaliabnb.com",
+              platform="", colors=24):
     name = clean_name(name)
+    plat = PLATFORM_LABEL.get((platform or "").strip().lower())
+    if plat:  # subtle verified-source badge on the meta line
+        badge = f"Verified {plat} review"
+        date = f"{date}  ·  {badge}" if date else badge
     rng = random.Random(seed)
     s = rng.choice(SCHEMES)
     th = rng.choice(THEMES)
@@ -294,6 +302,8 @@ if __name__ == "__main__":
     ap.add_argument("--seed", default=None)
     ap.add_argument("--date", default="")
     ap.add_argument("--url", default="regaliabnb.com")
+    ap.add_argument("--platform", default="")
     a = ap.parse_args()
-    make_card(a.name, a.quote, a.prop, a.out, seed=a.seed, date=a.date, url=a.url)
+    make_card(a.name, a.quote, a.prop, a.out, seed=a.seed, date=a.date, url=a.url,
+              platform=a.platform)
     print("wrote", a.out)

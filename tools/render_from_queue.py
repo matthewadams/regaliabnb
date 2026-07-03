@@ -16,10 +16,17 @@ spec.loader.exec_module(g)
 data = json.load(open(sys.argv[1]))
 rid = data["id"]
 out = os.path.join("review-cards", f"{rid}.png")
+
+# The verified badge derives from the cardId prefix (no separate field needed):
+#   airb- -> airbnb, vrbo- -> vrbo, hosp- -> hospitable
+PREFIX_PLATFORM = {"airb": "airbnb", "vrbo": "vrbo", "hosp": "hospitable"}
+platform = PREFIX_PLATFORM.get(rid.split("-", 1)[0], "")
+
 g.make_card(
     data["name"], data["quote"], data["property"], out,
     seed=data.get("seed", rid),
     date=data.get("date", ""),
     url=data.get("url", "https://regaliabnb.com"),
+    platform=platform,
 )
 print("rendered", out)
