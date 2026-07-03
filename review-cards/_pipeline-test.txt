@@ -1,0 +1,1 @@
+Regalia review-card hosting test. If you can read this at raw.githubusercontent.com, the daily review-posting pipeline can publish card images here. Safe to delete.
