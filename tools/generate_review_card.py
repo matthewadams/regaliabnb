@@ -253,10 +253,10 @@ def layout_band(d, img, s, th, rng, name, quote, prop, date, url):
 def layout_bigquote(d, img, s, th, rng, name, quote, prop, date, url):
     cx = W // 2
     bg, ink, acc = s["bg"], s["ink"], s["acc"]
-    draw_tracked(d, (cx, 116), BRAND, fnt(th["head"], 40), ink, th["htrack"], "c")
-    rule(d, cx - 60, cx + 60, 178, acc, 2)
-    d.text((cx - d.textlength("“", font=fnt(th["quote"], 240)) / 2, 150),
-           "“", font=fnt(th["quote"], 240), fill=blend(acc, bg, .22))
+    draw_tracked(d, (cx, 110), BRAND, fnt(th["head"], 40), ink, th["htrack"], "c")
+    rule(d, cx - 60, cx + 60, 162, acc, 2)
+    bigf = fnt(th["quote"], 200)
+    d.text((cx - d.textlength("“", font=bigf) / 2, 202), "“", font=bigf, fill=blend(acc, bg, .22))
     qf, lines, lh = fit_quote(d, quote, th["quote"], W - 220, 360, start=70)
     y = 430 + (360 - len(lines) * lh) // 2
     for ln in lines:
