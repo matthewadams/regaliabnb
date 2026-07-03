@@ -1,0 +1,57 @@
+name: Render review cards
+
+# When the daily task pushes a small queue JSON, render its PNG here in CI.
+on:
+  push:
+    paths:
+      - 'review-cards/queue/**.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-review-cards
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      # Shallow + sparse: never materialize the growing pile of existing card PNGs,
+      # so CI stays fast no matter how many cards accumulate.
+      - name: Checkout (shallow, sparse)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            review-cards/queue
+            .github
+          sparse-checkout-cone-mode: false
+
+      - name: Install fonts and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            fonts-urw-base35 fonts-crosextra-caladea fonts-crosextra-carlito \
+            fonts-lato fonts-liberation
+          python3 -m pip install --quiet Pillow
+
+      - name: Render queued cards
+        run: |
+          shopt -s nullglob
+          files=(review-cards/queue/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No queued cards."; exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Rendering from $f"
+            python3 tools/render_from_queue.py "$f"
+            git rm --quiet "$f"
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # --sparse lets us add PNGs at paths outside the sparse-checkout set
+          git add --sparse review-cards/*.png
+          git commit -m "Render review cards [skip ci]"
+          git push
