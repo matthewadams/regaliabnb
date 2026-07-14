@@ -3,6 +3,8 @@
 
 Usage: python3 tools/render_from_queue.py review-cards/queue/airb-<id>.json
 The JSON keys: id, name, quote, property, date, url  (seed defaults to id).
+Optional key: scheme (int 0-6 or name) forces the card color; omit for the
+seeded-random color. Used to guarantee color variety between consecutive posts.
 Output: review-cards/<id>.png
 """
 import sys, json, os, importlib.util
@@ -28,5 +30,6 @@ g.make_card(
     date=data.get("date", ""),
     url=data.get("url", "https://regaliabnb.com"),
     platform=platform,
+    scheme=data.get("scheme"),
 )
 print("rendered", out)
