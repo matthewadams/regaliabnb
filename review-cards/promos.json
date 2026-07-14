@@ -1,0 +1,14 @@
+{
+  "_comment": "Promo codes advertised on the daily 5-star review posts. Managed HERE, not in the scheduled task. Add/edit/remove entries freely. A promo is advertised only while active and within its date window, and only on the properties it applies to. property keys: 'carriagehouse', 'natchezvictorian', or 'all'. checkout_by = last date a qualifying stay may check out (the code stops being advertised after this date). valid_from is optional (when to START advertising). terms is an optional human phrase the post may weave in.",
+  "promos": [
+    {
+      "code": "5STAR26225",
+      "properties": ["all"],
+      "min_nights": 2,
+      "checkout_by": "2027-01-05",
+      "valid_from": "2026-07-01",
+      "terms": "any 2-night stay",
+      "active": true
+    }
+  ]
+}
