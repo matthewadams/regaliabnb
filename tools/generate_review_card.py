@@ -68,6 +68,28 @@ SCHEMES = [
     {"bg": (238, 230, 218),"ink": (58, 46, 39),   "acc": (168, 74, 47), "light": True},  # cream+terracotta
 ]
 
+# Stable names for each SCHEMES index (so callers/queue JSON can pick a color by
+# name or index). Order MUST match SCHEMES above.
+SCHEME_NAMES = ["forest", "wine", "navy", "charcoal", "plum", "teal", "cream"]
+
+
+def resolve_scheme(scheme):
+    """Map an explicit color selector to a SCHEMES index, or None to fall back to
+    the seeded-random choice. Accepts an int index, a numeric string, or a name
+    from SCHEME_NAMES. Out-of-range ints wrap via modulo; unknown values -> None."""
+    if scheme is None or scheme == "":
+        return None
+    if isinstance(scheme, bool):
+        return None
+    if isinstance(scheme, int):
+        return scheme % len(SCHEMES)
+    s = str(scheme).strip().lower()
+    if s.lstrip("-").isdigit():
+        return int(s) % len(SCHEMES)
+    if s in SCHEME_NAMES:
+        return SCHEME_NAMES.index(s)
+    return None
+
 
 _FALLBACK_RG = "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"
 _FALLBACK_IT = "/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"
@@ -275,14 +297,18 @@ PLATFORM_LABEL = {"airbnb": "Airbnb", "homeaway": "VRBO", "vrbo": "VRBO"}
 
 
 def make_card(name, quote, prop, out, seed=None, date="", url="https://regaliabnb.com",
-              platform="", colors=24):
+              platform="", colors=24, scheme=None):
     name = clean_name(name)
     plat = PLATFORM_LABEL.get((platform or "").strip().lower())
     if plat:  # subtle verified-source badge on the meta line
         badge = f"Verified {plat} review"
         date = f"{date}  ·  {badge}" if date else badge
     rng = random.Random(seed)
-    s = rng.choice(SCHEMES)
+    # An explicit scheme (int index or name) overrides the seeded color choice so
+    # callers can guarantee color variety (e.g. never two posts in a row alike).
+    # Font pairing and layout still vary with the seed.
+    idx = resolve_scheme(scheme)
+    s = SCHEMES[idx] if idx is not None else rng.choice(SCHEMES)
     th = rng.choice(THEMES)
     layout = rng.choice(LAYOUTS)
     img = Image.new("RGB", (W, H), s["bg"])
@@ -303,7 +329,10 @@ if __name__ == "__main__":
     ap.add_argument("--date", default="")
     ap.add_argument("--url", default="regaliabnb.com")
     ap.add_argument("--platform", default="")
+    ap.add_argument("--scheme", default=None,
+                    help="Force a color scheme by index (0-6) or name "
+                         "(forest, wine, navy, charcoal, plum, teal, cream).")
     a = ap.parse_args()
     make_card(a.name, a.quote, a.prop, a.out, seed=a.seed, date=a.date, url=a.url,
-              platform=a.platform)
+              platform=a.platform, scheme=a.scheme)
     print("wrote", a.out)
