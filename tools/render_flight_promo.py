@@ -19,6 +19,18 @@ LATO_BLACK=find_font('Lato-Black.ttf'); LATO_BOLD=find_font('Lato-Bold.ttf'); LA
 MONO_B=find_font('LiberationMono-Bold.ttf'); MONO_R=find_font('LiberationMono-Regular.ttf')
 PAL_B=find_font('P052-Bold.otf'); PAL_I=find_font('P052-Italic.otf'); PAL_BI=find_font('P052-BoldItalic.otf'); PAL_R=find_font('P052-Roman.otf')
 CEN_B=find_font('C059-Bold.otf'); CEN_I=find_font('C059-Italic.otf'); CEN_BI=find_font('C059-BdIta.otf')
+def find_font_opt(*names):
+    try: return find_font(*names)
+    except SystemExit: return None
+DEJA=find_font_opt('DejaVuSans.ttf')  # clean airplane glyph U+2708 (add fonts-dejavu-core in CI)
+def glyph_plane(size,color,ang):
+    if not DEJA: return None
+    f=F(DEJA,size); tmp=Image.new('RGBA',(int(size*1.6),int(size*1.6)),(0,0,0,0)); td=ImageDraw.Draw(tmp)
+    bb=td.textbbox((0,0),'✈',font=f)
+    td.text(((tmp.width-(bb[2]-bb[0]))/2-bb[0],(tmp.height-(bb[3]-bb[1]))/2-bb[1]),'✈',font=f,fill=color)
+    return tmp.rotate(ang,expand=True,resample=Image.BICUBIC)
+def paste_c(img,pl,cx,cy):
+    img.paste(pl,(int(cx-pl.width/2),int(cy-pl.height/2)),pl)
 def F(p,s): return ImageFont.truetype(p,s)
 def tl(d,t,f): return d.textlength(t,font=f)
 def ctext(d,cx,y,t,f,fill,ls=0):
@@ -120,8 +132,8 @@ def sky(img,url,cta):
     navy=(24,46,88); red=(206,58,46)
     for i in range(40):
         t=i/40; x=170+t*560; y=250-t*150; rr=int(18*(1-t))+3; d.ellipse([x-rr,y-rr,x+rr,y+rr],fill=(255,255,255))
-    px,py=760,70
-    d.polygon([(px,py),(px-120,py+34),(px-120,py+56),(px-32,py+58),(px-56,py+96),(px-30,py+100),(px+6,py+70),(px+32,py+76),(px+24,py+50),(px+14,py+34)],fill=navy)
+    pl=glyph_plane(150,navy,35)
+    if pl: paste_c(img,pl,720,90); d=ImageDraw.Draw(img)
     ctext(d,S/2,330,"NOW FLYING",F(LATO_BLACK,96),navy); ctext(d,S/2,438,"TO NATCHEZ",F(LATO_BLACK,96),red)
     url_pill(d,S/2,590,url,navy,(255,255,255))
     cf=fit(d,cta,LATO_BOLD,S-260,34); ctext(d,S/2,672,cta,cf,navy)
@@ -187,11 +199,12 @@ def victorian(img,url,cta):
         d.line([x,y,x+fx*64,y],fill=gold,width=4); d.line([x,y,x,y+fy*64],fill=gold,width=4)
         d.ellipse([x+fx*64-6,y-6,x+fx*64+6,y+6],fill=gold); d.ellipse([x-6,y+fy*64-6,x+6,y+fy*64+6],fill=gold)
     ctext(d,S/2,220,"NOW ARRIVING IN",F(PAL_R,30),burg,ls=6); ctext(d,S/2,262,"Natchez, Mississippi",F(PAL_BI,46),ink)
-    px,py=S/2,372; sc=0.9
-    def P(x,y): return (px+x*sc,py+y*sc)
-    d.polygon([P(-150,0),P(-104,-19),P(80,-22),P(122,-7),P(122,7),P(80,17),P(-104,19)],fill=burg)
-    d.polygon([P(86,-22),P(132,-64),P(116,-20)],fill=burg); d.polygon([P(14,-15),P(-46,-74),P(-2,-15)],fill=burg); d.polygon([P(8,15),P(-34,64),P(-2,15)],fill=burg)
-    for wx in range(-90,60,20): d.ellipse([P(wx,-5)[0],P(wx,-5)[1],P(wx+8,3)[0],P(wx+8,3)[1]],fill=gold)
+    pl=glyph_plane(118,burg,45)
+    if pl:
+        paste_c(img,pl,S/2,372); d=ImageDraw.Draw(img)
+    else:
+        d.line([S/2-160,372,S/2-24,372],fill=gold,width=3); d.line([S/2+24,372,S/2+160,372],fill=gold,width=3)
+        d.polygon([(S/2,360),(S/2+13,372),(S/2,384),(S/2-13,372)],outline=gold,width=3)
     ctext(d,S/2,440,"Now Flying to Natchez",F(PAL_B,60),burg)
     url_pill(d,S/2,560,url,burg,(238,214,150))
     cf=fit(d,cta,PAL_BI,S-220,44); ctext(d,S/2,640,cta,cf,ink)
