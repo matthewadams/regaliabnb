@@ -1,0 +1,54 @@
+name: Render flight-promo images
+
+# When the flight-post task pushes a small queue JSON, render its PNG here in CI.
+on:
+  push:
+    paths:
+      - 'flight-promo/queue/**.json'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-flight-promo
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (shallow, sparse)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            flight-promo/queue
+            .github
+          sparse-checkout-cone-mode: false
+
+      - name: Install fonts and Pillow
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            fonts-urw-base35 fonts-crosextra-caladea fonts-crosextra-carlito \
+            fonts-lato fonts-liberation
+          python3 -m pip install --quiet Pillow
+
+      - name: Render queued images
+        run: |
+          shopt -s nullglob
+          files=(flight-promo/queue/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No queued images."; exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Rendering from $f"
+            python3 tools/render_flight_promo.py "$f"
+            git rm --quiet "$f"
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --sparse flight-promo/*.png
+          git commit -m "Render flight-promo images [skip ci]"
+          git push
