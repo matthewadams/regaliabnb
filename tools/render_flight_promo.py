@@ -125,15 +125,36 @@ def departure(img,url,cta):
     url_pill(d,S/2,748,url,amber,(20,20,24)); ctext(d,S/2,806,cta,F(MONO_R,24),dim,ls=1)
 
 # ---- 4 sky ----
+def plane_axis(tile):
+    """(nose,tail) of the airplane glyph tile via image moments (needs numpy)."""
+    import numpy as np
+    a=np.array(tile.split()[-1]); ys,xs=np.nonzero(a>40)
+    cx=xs.mean(); cy=ys.mean(); x=xs-cx; y=ys-cy
+    cov=np.cov(np.stack([x,y])); w,v=np.linalg.eigh(cov); axis=v[:,int(np.argmax(w))]
+    proj=x*axis[0]+y*axis[1]; ea=(cx+axis[0]*proj.max(),cy+axis[1]*proj.max()); eb=(cx+axis[0]*proj.min(),cy+axis[1]*proj.min())
+    nose=ea if (ea[0]-ea[1])>(eb[0]-eb[1]) else eb; tail=eb if nose is ea else ea
+    return nose,tail
 def sky(img,url,cta):
     cl=Image.new('L',(S,S),0); dc=ImageDraw.Draw(cl)
-    for cx,cy,rw,rh in [(220,880,280,90),(320,940,320,120),(840,930,320,120),(910,220,150,60),(170,250,150,55)]: dc.ellipse([cx-rw,cy-rh,cx+rw,cy+rh],fill=200)
+    for cx,cy,rw,rh in [(220,880,280,90),(320,940,320,120),(840,930,320,120),(910,300,150,60),(170,320,150,55)]: dc.ellipse([cx-rw,cy-rh,cx+rw,cy+rh],fill=200)
     cl=cl.filter(ImageFilter.GaussianBlur(30)); img.paste(Image.composite(Image.new('RGB',(S,S),(255,255,255)),img.copy(),cl),(0,0)); d=ImageDraw.Draw(img)
     navy=(24,46,88); red=(206,58,46)
-    for i in range(40):
-        t=i/40; x=170+t*560; y=250-t*150; rr=int(18*(1-t))+3; d.ellipse([x-rr,y-rr,x+rr,y+rr],fill=(255,255,255))
-    pl=glyph_plane(150,navy,35)
-    if pl: paste_c(img,pl,720,90); d=ImageDraw.Draw(img)
+    tile=glyph_plane(146,navy,32); done=False
+    if tile:
+        try:
+            nose,tail=plane_axis(tile); cxp,cyp=820,120
+            tx=cxp-tile.width/2+tail[0]; ty=cyp-tile.height/2+tail[1]
+            dxn=tail[0]-nose[0]; dyn=tail[1]-nose[1]; LL=math.hypot(dxn,dyn); ux,uy=dxn/LL,dyn/LL
+            for i in range(40):
+                t=i/39; pxx=tx+ux*360*t; pyy=ty+uy*360*t; rr=3.5+t*16
+                d.ellipse([pxx-rr,pyy-rr,pxx+rr,pyy+rr],fill=(255,255,255))
+            paste_c(img,tile,cxp,cyp); d=ImageDraw.Draw(img); done=True
+        except Exception:
+            done=False
+    if not done:
+        for i in range(40):
+            t=i/40; x=170+t*520; y=250-t*140; rr=int(16*(1-t))+3; d.ellipse([x-rr,y-rr,x+rr,y+rr],fill=(255,255,255))
+        if tile: paste_c(img,tile,760,150); d=ImageDraw.Draw(img)
     ctext(d,S/2,330,"NOW FLYING",F(LATO_BLACK,96),navy); ctext(d,S/2,438,"TO NATCHEZ",F(LATO_BLACK,96),red)
     url_pill(d,S/2,590,url,navy,(255,255,255))
     cf=fit(d,cta,LATO_BOLD,S-260,34); ctext(d,S/2,672,cta,cf,navy)

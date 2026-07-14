@@ -32,8 +32,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             fonts-urw-base35 fonts-crosextra-caladea fonts-crosextra-carlito \
-            fonts-lato fonts-liberation
-          python3 -m pip install --quiet Pillow
+            fonts-lato fonts-liberation fonts-dejavu-core
+          python3 -m pip install --quiet Pillow numpy
 
       - name: Render queued images
         run: |
