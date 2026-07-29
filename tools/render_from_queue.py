@@ -1,21 +1,47 @@
 #!/usr/bin/env python3
-"""Render a review card from a queued JSON descriptor (run in CI by the workflow).
+"""Render a queued card from a JSON descriptor (run in CI by the workflow).
 
-Usage: python3 tools/render_from_queue.py review-cards/queue/airb-<id>.json
-The JSON keys: id, name, quote, property, date, url  (seed defaults to id).
-Optional key: scheme (int 0-6 or name) forces the card color; omit for the
-seeded-random color. Used to guarantee color variety between consecutive posts.
-Output: review-cards/<id>.png
+Handles two kinds of queue entries, both under review-cards/queue/*.json:
+
+1. Review card (original): keys id, name, quote, property, date, url; seed
+   defaults to id; optional scheme. Output: review-cards/<id>.png
+
+2. CMA card: identified by the presence of a "panels" key. The JSON is the
+   generate_cma_card.py spec (property, specs, dates, nights, checked, panels,
+   optional direct_line, cta) plus control keys out (target PNG path, defaults
+   to review-cards/<stem>.png), seed (defaults to stem) and optional scheme.
+
+Usage: python3 tools/render_from_queue.py review-cards/queue/<name>.json
 """
 import sys, json, os, importlib.util
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-spec = importlib.util.spec_from_file_location(
-    "g", os.path.join(HERE, "generate_review_card.py"))
-g = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(g)
 
-data = json.load(open(sys.argv[1]))
+
+def _load(modfile, name):
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(HERE, modfile))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+path = sys.argv[1]
+data = json.load(open(path))
+stem = os.path.splitext(os.path.basename(path))[0]
+
+# --- CMA card branch (identified by "panels") ---
+if "panels" in data:
+    gc = _load("generate_cma_card.py", "gc")
+    out = data.get("out") or os.path.join("review-cards", f"{stem}.png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    gc.make_cma_card(data, out, seed=data.get("seed", stem),
+                     scheme=data.get("scheme"))
+    print("rendered", out)
+    sys.exit(0)
+
+# --- Review card branch (original behavior) ---
+g = _load("generate_review_card.py", "g")
 rid = data["id"]
 out = os.path.join("review-cards", f"{rid}.png")
 
