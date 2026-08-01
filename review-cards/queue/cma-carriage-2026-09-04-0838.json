@@ -1,0 +1,15 @@
+{
+  "property": "Carriage House",
+  "specs": "Entire cottage · 2 BR · 1 BA · Sleeps 4",
+  "dates": "Fri Sep 4 – Sun Sep 6",
+  "nights": 2,
+  "checked": "Aug 1, 2026 · 8:38 AM CDT",
+  "panels": [
+    {"platform": "airbnb", "our_price": 425, "comps": [["Historic Haven", 521]]},
+    {"platform": "vrbo", "our_price": 461, "comps": [["Darby's Guest House", 591]]}
+  ],
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "out": "review-cards/cma-carriage-2026-09-04-0838.png",
+  "seed": "carriage-2026-09-04",
+  "scheme": "charcoal"
+}
