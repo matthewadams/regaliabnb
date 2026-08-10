@@ -6,6 +6,10 @@ Variety is deterministic per --seed (pass the review id) so a given review alway
 renders the same card, but different reviews vary across color schemes, font
 pairings, layouts, frames and star/divider treatments.
 
+The rating glyph adapts to the review's platform: Airbnb reviews (scored out of
+5) render five gold stars; VRBO reviews (scored out of 10) render a "10/10"
+wordmark instead, since that is the scale guests actually see on VRBO.
+
 Usage:
   python3 generate_review_card.py --seed <review_id> \
       --name "Michael" \
@@ -162,6 +166,23 @@ def stars(d, cx, cy, acc, outer=30, gap=26, n=5):
         d.polygon(pts, fill=acc)
 
 
+def rating_mark(d, cx, cy, acc, th, style="stars", outer=30, gap=26):
+    """Draw the review's rating glyph centered at (cx, cy).
+
+    style "stars" (default, Airbnb): five gold stars — identical to the historic
+    behavior, so existing cards re-render byte-for-byte.
+    style "ten" (VRBO): a "10/10" wordmark in the accent color, because VRBO
+    scores out of ten and that is what guests see on the listing."""
+    if style == "ten":
+        size = int(outer * 2.2)
+        f = fnt(th["head"], size)
+        # draw_tracked takes the text top as y; offset up by ~half the cap height
+        # so the wordmark sits centered where the star row would have been.
+        draw_tracked(d, (cx, cy - int(size * 0.5)), "10/10", f, acc, 3, "c")
+    else:
+        stars(d, cx, cy, acc, outer=outer, gap=gap)
+
+
 def rule(d, x1, x2, y, color, w=2):
     d.line([(x1, y), (x2, y)], fill=color, width=w)
 
@@ -197,7 +218,7 @@ def attrib(d, x, y, name, date, th, s, anchor="l"):
                      blend(ink, bg, .22), 5, anchor)
 
 
-def layout_centered(d, img, s, th, rng, name, quote, prop, date, url):
+def layout_centered(d, img, s, th, rng, name, quote, prop, date, url, rating):
     cx = W // 2
     bg, ink, acc = s["bg"], s["ink"], s["acc"]
     m = rng.choice([56, 62, 68])
@@ -213,7 +234,8 @@ def layout_centered(d, img, s, th, rng, name, quote, prop, date, url):
         rule(d, m + 20, W - m - 20, 884, acc, 2)
     draw_tracked(d, (cx, 148), BRAND, fnt(th["head"], 46), ink, th["htrack"], "c")
     draw_tracked(d, (cx, 214), "NATCHEZ  ·  MISSISSIPPI", fnt(th["label"], 21), acc, 6, "c")
-    stars(d, cx, 322, acc, outer=rng.choice([28, 32]), gap=rng.choice([24, 30]))
+    o = rng.choice([28, 32]); gp = rng.choice([24, 30])
+    rating_mark(d, cx, 322, acc, th, rating, outer=o, gap=gp)
     qf, lines, lh = fit_quote(d, f'“{quote}”', th["quote"], W - 2 * (m + 60), 340)
     y = 410 + (340 - len(lines) * lh) // 2
     for ln in lines:
@@ -224,7 +246,7 @@ def layout_centered(d, img, s, th, rng, name, quote, prop, date, url):
     draw_url(d, cx, 946, url, th["head"], acc, W - 2 * (m + 34), "c", 26, 2)
 
 
-def layout_editorial(d, img, s, th, rng, name, quote, prop, date, url):
+def layout_editorial(d, img, s, th, rng, name, quote, prop, date, url, rating):
     bg, ink, acc = s["bg"], s["ink"], s["acc"]
     m = 84
     corner_brackets(d, m, acc, ln=rng.choice([60, 80]), w=3)
@@ -239,13 +261,13 @@ def layout_editorial(d, img, s, th, rng, name, quote, prop, date, url):
     for ln in lines:
         d.text((lx, y), ln, font=qf, fill=ink)
         y += lh
-    stars(d, lx + 120, y + 66, acc, outer=24, gap=20)
+    rating_mark(d, lx + 120, y + 66, acc, th, rating, outer=24, gap=20)
     attrib(d, lx, y + 110, name, date, th, s)
     draw_tracked(d, (lx, H - m - 92), prop.upper(), fnt(th["label"], 22), blend(ink, bg, .15), 4)
     draw_url(d, lx, H - m - 54, url, th["head"], acc, W - lx - m - 20, "l", 24, 1)
 
 
-def layout_band(d, img, s, th, rng, name, quote, prop, date, url):
+def layout_band(d, img, s, th, rng, name, quote, prop, date, url, rating):
     cx = W // 2
     bg, ink, acc = s["bg"], s["ink"], s["acc"]
     band_h = rng.choice([196, 220])
@@ -256,7 +278,7 @@ def layout_band(d, img, s, th, rng, name, quote, prop, date, url):
     draw_tracked(d, (cx, band_h // 2 - 32), BRAND, fnt(th["head"], 44), tcol, th["htrack"], "c")
     draw_tracked(d, (cx, band_h // 2 + 26), "NATCHEZ  ·  MISSISSIPPI",
                  fnt(th["label"], 20), blend(tcol, acc, .25), 6, "c")
-    stars(d, cx, band_h + 90, acc, outer=28, gap=26)
+    rating_mark(d, cx, band_h + 90, acc, th, rating, outer=28, gap=26)
     qf, lines, lh = fit_quote(d, f'“{quote}”', th["quote"], W - 200, 320)
     y = band_h + 170 + (320 - len(lines) * lh) // 2
     for ln in lines:
@@ -272,7 +294,7 @@ def layout_band(d, img, s, th, rng, name, quote, prop, date, url):
         draw_url(d, cx, H - 104, url, th["head"], acc, W - 160, "c", 26, 2)
 
 
-def layout_bigquote(d, img, s, th, rng, name, quote, prop, date, url):
+def layout_bigquote(d, img, s, th, rng, name, quote, prop, date, url, rating):
     cx = W // 2
     bg, ink, acc = s["bg"], s["ink"], s["acc"]
     draw_tracked(d, (cx, 110), BRAND, fnt(th["head"], 40), ink, th["htrack"], "c")
@@ -284,7 +306,7 @@ def layout_bigquote(d, img, s, th, rng, name, quote, prop, date, url):
     for ln in lines:
         d.text((cx - d.textlength(ln, font=qf) / 2, y), ln, font=qf, fill=ink)
         y += lh
-    stars(d, cx, 828, acc, outer=24, gap=22)
+    rating_mark(d, cx, 828, acc, th, rating, outer=24, gap=22)
     attrib(d, cx, 872, name, date, th, s, "c")
     draw_tracked(d, (cx, 960), prop.upper(), fnt(th["label"], 20), blend(ink, bg, .12), 4, "c")
     draw_url(d, cx, 996, url, th["head"], acc, W - 160, "c", 24, 2)
@@ -303,6 +325,8 @@ def make_card(name, quote, prop, out, seed=None, date="", url="https://regaliabn
     if plat:  # subtle verified-source badge on the meta line
         badge = f"Verified {plat} review"
         date = f"{date}  ·  {badge}" if date else badge
+    # VRBO is scored out of ten, so its cards show "10/10" rather than 5 stars.
+    rating = "ten" if plat == "VRBO" else "stars"
     rng = random.Random(seed)
     # An explicit scheme (int index or name) overrides the seeded color choice so
     # callers can guarantee color variety (e.g. never two posts in a row alike).
@@ -313,7 +337,7 @@ def make_card(name, quote, prop, out, seed=None, date="", url="https://regaliabn
     layout = rng.choice(LAYOUTS)
     img = Image.new("RGB", (W, H), s["bg"])
     d = ImageDraw.Draw(img)
-    layout(d, img, s, th, rng, name, quote, prop, date, url)
+    layout(d, img, s, th, rng, name, quote, prop, date, url, rating)
     # palette-optimize (flat art) to keep PNG + base64 small
     img.convert("P", palette=Image.ADAPTIVE, colors=colors).save(out, optimize=True)
     return out
