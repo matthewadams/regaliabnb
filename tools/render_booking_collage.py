@@ -10,6 +10,7 @@ Spec shape:
     "kind": "photo_collage",
     "photos": ["<url>", "<url>", "<url>"],
     "title": "The Mose Beer House",
+    "tagline": "Downtown Natchez, MS Grand Victorian",
     "subtitle": "NOW ON BOOKING.COM",
     "theme": "victorian" | "carriage"
   }
@@ -22,8 +23,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 S = 1080
 GUTTER = 6
-HERO_H = 470          # top hero band
-RIBBON_H = 140        # crop-safe center ribbon (y 470-610)
+HERO_H = 445          # top hero band
+RIBBON_H = 190        # crop-safe center ribbon (y 445-635, centered on 540)
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
@@ -114,13 +115,17 @@ def collage(spec):
     d.line([0, bot_y - 3, S, bot_y - 3], fill=theme['rule'], width=3)
 
     title = spec.get('title', '')
+    tagline = spec.get('tagline', '')          # e.g. "Natchez, MS"
     subtitle = spec.get('subtitle', 'NOW ON BOOKING.COM')
 
-    tf = fit_font(d, title, LATO_BLACK, S - 140, 62)
-    ctext(d, S / 2, HERO_H + 22, title, tf, theme['ink'])
+    tf = fit_font(d, title, LATO_BLACK, S - 140, 58)
+    ctext(d, S / 2, HERO_H + 16, title, tf, theme['ink'])
 
-    sf = fit_font(d, subtitle, LATO_BOLD, S - 200, 30, ls=6)
-    ctext(d, S / 2, HERO_H + 96, subtitle, sf, theme['accent'], ls=6)
+    gf = fit_font(d, tagline, LATO_BOLD, S - 120, 32)
+    ctext(d, S / 2, HERO_H + 84, tagline, gf, theme['ink'])
+
+    sf = fit_font(d, subtitle, LATO_BOLD, S - 200, 27, ls=6)
+    ctext(d, S / 2, HERO_H + 136, subtitle, sf, theme['accent'], ls=6)
 
     return img
 
