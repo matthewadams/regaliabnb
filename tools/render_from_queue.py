@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a queued card from a JSON descriptor (run in CI by the workflow).
 
-Handles two kinds of queue entries, both under review-cards/queue/*.json:
+Handles three kinds of queue entries, all under review-cards/queue/*.json:
 
 1. Review card (original): keys id, name, quote, property, date, url; seed
    defaults to id; optional scheme. Output: review-cards/<id>.png
@@ -10,6 +10,10 @@ Handles two kinds of queue entries, both under review-cards/queue/*.json:
    generate_cma_card.py spec (property, specs, dates, nights, checked, panels,
    optional direct_line, cta) plus control keys out (target PNG path, defaults
    to review-cards/<stem>.png), seed (defaults to stem) and optional scheme.
+
+3. Photo collage: identified by "kind": "photo_collage". The JSON is the
+   render_booking_collage.py spec (id, photos, title, subtitle, theme).
+   Output: review-cards/<id>.png
 
 Usage: python3 tools/render_from_queue.py review-cards/queue/<name>.json
 """
@@ -29,6 +33,16 @@ def _load(modfile, name):
 path = sys.argv[1]
 data = json.load(open(path))
 stem = os.path.splitext(os.path.basename(path))[0]
+
+# --- Photo collage branch (identified by kind == "photo_collage") ---
+if data.get("kind") == "photo_collage":
+    bc = _load("render_booking_collage.py", "bc")
+    out = data.get("out") or os.path.join(
+        "review-cards", "%s.png" % data.get("id", stem))
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    bc.collage(data).save(out, optimize=True)
+    print("rendered", out, os.path.getsize(out), "bytes")
+    sys.exit(0)
 
 # --- CMA card branch (identified by "panels") ---
 if "panels" in data:
