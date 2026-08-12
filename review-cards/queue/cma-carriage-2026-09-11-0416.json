@@ -1,0 +1,23 @@
+{
+  "property": "Carriage House",
+  "specs": "Entire cottage · 2 BR · 1 BA · Sleeps 4",
+  "dates": "Fri Sep 11 – Sun Sep 13",
+  "nights": 2,
+  "checked": "Aug 12, 2026 · 4:16 AM CDT",
+  "panels": [
+    {
+      "platform": "airbnb",
+      "our_price": 352,
+      "comps": [["Natchez Pearl", 634], ["Historic Haven", 499], ["Shanty Bellum", 459]]
+    },
+    {
+      "platform": "vrbo",
+      "our_price": 395,
+      "comps": [["Darby's Guest House", 594], ["Historic Haven", 563], ["Charming Cottage", 522]]
+    }
+  ],
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "out": "review-cards/cma-carriage-2026-09-11-0416.png",
+  "seed": "carriage-2026-09-11",
+  "scheme": "navy"
+}

@@ -1,0 +1,24 @@
+{
+  "property": "Mose Beer House",
+  "specs": "Grand Victorian · 4 BR · 4 BA · Sleeps 8",
+  "dates": "Fri Sep 11 – Sun Sep 13",
+  "nights": 2,
+  "checked": "Aug 12, 2026 · 4:16 AM CDT",
+  "panels": [
+    {
+      "platform": "airbnb",
+      "our_price": 947,
+      "comps": [["Edelweiss Guest House", 1712]]
+    },
+    {
+      "platform": "vrbo",
+      "our_price": 977,
+      "comps": [["Spacious Historic Home", 1078]]
+    }
+  ],
+  "direct_line": "BOOK DIRECT: $900 BEFORE TAX  ·  $47 LESS THAN AIRBNB",
+  "cta": "LOWEST PRICE · BOOK DIRECT",
+  "out": "review-cards/cma-mbh-2026-09-11-0416.png",
+  "seed": "mbh-2026-09-11",
+  "scheme": "navy"
+}
