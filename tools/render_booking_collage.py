@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Regalia 'Now on Booking.com' photo collage renderer.
+"""Regalia Booking.com photo collage renderer.
 
 Reads a queue spec JSON and composites 3 remote listing photos into a single
 1080x1080 social image with a crop-safe center ribbon.
 
-Spec shape:
+Standard spec:
   {
     "id": "booking-<slug>-<stamp>",
     "kind": "photo_collage",
@@ -15,6 +15,16 @@ Spec shape:
     "theme": "victorian" | "carriage"
   }
 
+Promo variant — add "headline" (and optionally "fineprint") to get a taller
+ribbon led by the offer:
+  {
+    ...,
+    "headline": "20% OFF",
+    "title": "The Mose Beer House - Natchez, MS",
+    "subtitle": "NEW LISTING PROMO ON BOOKING.COM",
+    "fineprint": "Limited time only - First 3 Booking.com bookings eligible"
+  }
+
 Usage: python3 tools/render_booking_collage.py <queue.json>
    ->  booking-collage/<id>.png
 """
@@ -23,8 +33,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 S = 1080
 GUTTER = 6
-HERO_H = 445          # top hero band
-RIBBON_H = 190        # crop-safe center ribbon (y 445-635, centered on 540)
+HERO_H = 445          # top hero band (standard ribbon)
+RIBBON_H = 190        # crop-safe center ribbon (standard)
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
@@ -92,15 +102,19 @@ def collage(spec):
     if len(photos) < 3:
         raise SystemExit('need 3 photos, got %d' % len(photos))
 
+    promo = bool(spec.get('headline'))
+    ribbon_h = 255 if promo else RIBBON_H
+    hero_h = (S - ribbon_h) // 2 + (35 if promo else 0)
+
     img = Image.new('RGB', (S, S), theme['paper'])
 
     # --- top hero, full width ---
-    hero = ImageOps.fit(fetch(photos[0]), (S, HERO_H), method=Image.LANCZOS,
+    hero = ImageOps.fit(fetch(photos[0]), (S, hero_h), method=Image.LANCZOS,
                         centering=(0.5, 0.5))
     img.paste(hero, (0, 0))
 
     # --- bottom pair ---
-    bot_y = HERO_H + RIBBON_H
+    bot_y = hero_h + ribbon_h
     bot_h = S - bot_y
     half_w = (S - GUTTER) // 2
     for i, url in enumerate(photos[1:3]):
@@ -110,22 +124,40 @@ def collage(spec):
 
     # --- crop-safe center ribbon ---
     d = ImageDraw.Draw(img)
-    d.rectangle([0, HERO_H, S, bot_y], fill=theme['paper'])
-    d.line([0, HERO_H + 3, S, HERO_H + 3], fill=theme['rule'], width=3)
+    d.rectangle([0, hero_h, S, bot_y], fill=theme['paper'])
+    d.line([0, hero_h + 3, S, hero_h + 3], fill=theme['rule'], width=3)
     d.line([0, bot_y - 3, S, bot_y - 3], fill=theme['rule'], width=3)
 
     title = spec.get('title', '')
     tagline = spec.get('tagline', '')          # e.g. "Natchez, MS"
     subtitle = spec.get('subtitle', 'NOW ON BOOKING.COM')
 
+    if promo:
+        headline = spec['headline']            # e.g. "20% OFF"
+        fineprint = spec.get('fineprint', '')
+
+        hf = fit_font(d, headline, LATO_BLACK, S - 120, 96)
+        ctext(d, S / 2, hero_h + 8, headline, hf, theme['accent'])
+
+        tf = fit_font(d, title, LATO_BLACK, S - 140, 40)
+        ctext(d, S / 2, hero_h + 116, title, tf, theme['ink'])
+
+        sf = fit_font(d, subtitle, LATO_BOLD, S - 180, 24, ls=5)
+        ctext(d, S / 2, hero_h + 168, subtitle, sf, theme['ink'], ls=5)
+
+        if fineprint:
+            ff = fit_font(d, fineprint, LATO_BOLD, S - 90, 19)
+            ctext(d, S / 2, hero_h + 212, fineprint, ff, (128, 122, 112))
+        return img
+
     tf = fit_font(d, title, LATO_BLACK, S - 140, 58)
-    ctext(d, S / 2, HERO_H + 16, title, tf, theme['ink'])
+    ctext(d, S / 2, hero_h + 16, title, tf, theme['ink'])
 
     gf = fit_font(d, tagline, LATO_BOLD, S - 120, 32)
-    ctext(d, S / 2, HERO_H + 84, tagline, gf, theme['ink'])
+    ctext(d, S / 2, hero_h + 84, tagline, gf, theme['ink'])
 
     sf = fit_font(d, subtitle, LATO_BOLD, S - 200, 27, ls=6)
-    ctext(d, S / 2, HERO_H + 136, subtitle, sf, theme['accent'], ls=6)
+    ctext(d, S / 2, hero_h + 136, subtitle, sf, theme['accent'], ls=6)
 
     return img
 
