@@ -1,0 +1,17 @@
+{
+  "property": "Carriage House",
+  "specs": "Entire cottage · 2 BR · 1 BA · Sleeps 4",
+  "dates": "Fri Sep 18 – Sun Sep 20",
+  "nights": 2,
+  "checked": "Aug 19, 2026 · 4:07 AM CDT",
+  "panels": [
+    {"platform": "airbnb", "our_price": 388,
+     "comps": [["Front Porch Home", 634], ["Bluff-Area Cottage", 471], ["Jetted-Tub Cottage", 463]]},
+    {"platform": "vrbo", "our_price": 427,
+     "comps": [["Historic Haven", 522], ["Kelly Kottage", 485]]}
+  ],
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "out": "review-cards/cma-carriage-2026-09-18-0407.png",
+  "seed": "carriage-2026-09-18",
+  "scheme": "charcoal"
+}
