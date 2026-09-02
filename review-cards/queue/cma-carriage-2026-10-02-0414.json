@@ -1,0 +1,17 @@
+{
+  "property": "Carriage House",
+  "specs": "Entire cottage · 2 BR · 1 BA · Sleeps 4",
+  "dates": "Fri Oct 2 – Sun Oct 4",
+  "nights": 2,
+  "checked": "Sep 2, 2026 · 4:14 AM CDT",
+  "panels": [
+    {"platform": "airbnb", "our_price": 451,
+     "comps": [["Downtown Cottage", 514], ["On The Bluff", 543], ["Porch Views", 628]]},
+    {"platform": "vrbo", "our_price": 511,
+     "comps": [["Spacious Downtown Home", 963]]}
+  ],
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "out": "review-cards/cma-carriage-2026-10-02-0414.png",
+  "seed": "carriage-2026-10-02",
+  "scheme": "teal"
+}
