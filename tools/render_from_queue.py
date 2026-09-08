@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render a queued card from a JSON descriptor (run in CI by the workflow).
 
-Handles three kinds of queue entries, all under review-cards/queue/*.json:
+Handles four kinds of queue entries, all under review-cards/queue/*.json:
 
 1. Review card (original): keys id, name, quote, property, date, url; seed
    defaults to id; optional scheme. Output: review-cards/<id>.png
@@ -14,6 +14,12 @@ Handles three kinds of queue entries, all under review-cards/queue/*.json:
 3. Photo collage: identified by "kind": "photo_collage". The JSON is the
    render_booking_collage.py spec (id, photos, title, subtitle, theme).
    Output: review-cards/<id>.png
+
+4. Image passthrough: identified by "kind": "image_b64". Key b64 holds a
+   base64-encoded image (webp/jpeg/png) which is decoded and re-saved as PNG
+   at "out". This exists because the GitHub connector stores file content as
+   UTF-8 text and cannot push binary directly, so a supplied photo has to ride
+   in as text and be materialized here in CI.
 
 Usage: python3 tools/render_from_queue.py review-cards/queue/<name>.json
 """
@@ -33,6 +39,24 @@ def _load(modfile, name):
 path = sys.argv[1]
 data = json.load(open(path))
 stem = os.path.splitext(os.path.basename(path))[0]
+
+# --- Image passthrough branch (identified by kind == "image_b64") ---
+if data.get("kind") == "image_b64":
+    import base64, io, hashlib
+    from PIL import Image
+    out = data.get("out") or os.path.join("review-cards", f"{stem}.png")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    raw = base64.b64decode(data["b64"], validate=True)
+    src_sha = hashlib.sha256(raw).hexdigest()
+    expect = data.get("sha256")
+    if expect and expect != src_sha:
+        raise SystemExit(
+            f"payload sha256 mismatch: got {src_sha}, expected {expect}")
+    img = Image.open(io.BytesIO(raw)).convert("RGB")
+    img.save(out, "PNG", optimize=True)
+    print("rendered", out, os.path.getsize(out), "bytes", img.size,
+          "payload sha256", src_sha)
+    sys.exit(0)
 
 # --- Photo collage branch (identified by kind == "photo_collage") ---
 if data.get("kind") == "photo_collage":
