@@ -1,0 +1,15 @@
+{
+  "property": "Carriage House",
+  "specs": "Entire cottage · 2 BR · 1 BA · Sleeps 4",
+  "dates": "Fri Oct 23 – Sun Oct 25",
+  "nights": 2,
+  "checked": "Sep 9, 2026 · 4:12 AM CDT",
+  "panels": [
+    {"platform": "airbnb", "our_price": 609, "comps": [["Private Patio Home", 790]]},
+    {"platform": "vrbo", "our_price": 668, "comps": [["5-Star Downtown Home", 1059]]}
+  ],
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "out": "review-cards/cma-carriage-2026-10-23-0412.png",
+  "seed": "carriage-2026-10-23",
+  "scheme": "forest"
+}

@@ -1,0 +1,15 @@
+{
+  "property": "Mose Beer House",
+  "specs": "Grand Victorian · 4 BR · 4 BA · Sleeps 8",
+  "dates": "Fri Oct 23 – Sun Oct 25",
+  "nights": 2,
+  "checked": "Sep 9, 2026 · 4:12 AM CDT",
+  "panels": [
+    {"platform": "airbnb", "our_price": 1380, "comps": [["Viking Kitchen Home", 1712]]}
+  ],
+  "direct_line": "BOOK DIRECT: $1,242 BEFORE TAX  ·  $138 LESS THAN AIRBNB",
+  "cta": "BOOK DIRECT AT REGALIABNB.COM",
+  "out": "review-cards/cma-mbh-2026-10-23-0412.png",
+  "seed": "mbh-2026-10-23",
+  "scheme": "forest"
+}
