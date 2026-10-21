@@ -65,7 +65,7 @@ DEFAULTS = {
     "pre_arrival_hours": 3,
     "quiet_hours": [22, 7],            # local [start, end): no messages, no non-emergency switches
     "min_dwell_hours": 6,              # don't flip-flop modes
-    "heat_default": 70, "cool_default": 74,
+    "heat_default": 68, "cool_default": 74,
     "cool_trigger_indoor": 75,         # in HEAT mode: switch to COOL when indoor >= this ...
     "cool_margin_over_heat_sp": 2,     # ... and indoor >= heat setpoint + this ...
     "cool_needs_outdoor_max": 72,      # ... and forecast max over next 6h >= this
@@ -226,6 +226,9 @@ def gate(cfg: dict, now: datetime, occ: list[dict], forecasts) -> list[dict]:
                     tg["contact_sensi"], tg["why"] = True, "first check this stay: set guest mode"
                     continue
                 tg["last_set"] = f"{last['mode']} at {_ts(last['at'])}"
+                if now < _parse(cur["check_in"]):
+                    tg["contact_sensi"], tg["why"] = True, "before check-in: confirm guest setting (cleaner may have changed it)"
+                    continue
                 if now - last["at"] < timedelta(hours=c["min_dwell_hours"]):
                     tg["why"] = "within dwell period"
                     continue
@@ -396,6 +399,21 @@ def decide(cfg: dict, now: datetime, devices: list[dict], occupancy: list[dict],
             tr.update(mode=t["mode"], indoor=t["indoor_temp"], heat_to=t["heat_setpoint"], cool_to=t["cool_setpoint"])
             last = last_for(switches, key)
             first = last is None
+            if not first and now < _parse(cur["check_in"]) and last.get("sp") is not None:
+                # Before check-in, the cleaner may still be working: put back exactly the guest
+                # setting chosen earlier (indoor readings mid-cleaning aren't a basis to re-decide).
+                desired, sp = last["mode"], last["sp"]
+                if t["mode"] == desired and current_sp(t) == sp:
+                    tr["decision"] = f"before check-in: guest setting ({desired} to {sp}°) still in place"
+                    continue
+                lim = t["heat_ceiling"] if desired == "heat" else t["cool_floor"]
+                was = f"{t['mode']}" + (f" to {current_sp(t):.0f}°" if current_sp(t) is not None else "")
+                tr["decision"] = f"before check-in: restore {desired} to {sp}° (someone changed it to {was})"
+                report["actions"].append(_action(unit, cur["reservation_id"], t, key, label, desired, sp, "guest", lim))
+                if not dry_run:
+                    report["note_tags"].append({"reservation_id": cur["reservation_id"], "unit": unit["name"],
+                                                "key": key, "tag": switch_tag(local, key, desired, sp, lim)})
+                continue
             desired, why, emergency = decide_thermostat(c, t, fmin6, fmax6, fmean12, first_check=first)
             if desired is None:
                 tr["decision"] = why
