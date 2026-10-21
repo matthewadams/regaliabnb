@@ -334,6 +334,16 @@ def vacancy_target(c: dict, t: dict, fmean12) -> tuple[str, int]:
     return mode, c["vacancy_heat"] if mode == "heat" else c["vacancy_cool"]
 
 
+def within_limits(t: dict, mode: str, sp: int) -> int:
+    """Keep a setpoint inside the thermostat's own guest limits as read live. This task
+    only reads those limits (heat ceiling, cool floor); it never changes them."""
+    if mode == "heat" and t.get("heat_ceiling") is not None:
+        return int(min(sp, t["heat_ceiling"]))
+    if mode == "cool" and t.get("cool_floor") is not None:
+        return int(max(sp, t["cool_floor"]))
+    return int(sp)
+
+
 def current_sp(t: dict):
     return {"heat": t["heat_setpoint"], "cool": t["cool_setpoint"]}.get(t["mode"])
 
@@ -402,7 +412,7 @@ def decide(cfg: dict, now: datetime, devices: list[dict], occupancy: list[dict],
             if not first and now < _parse(cur["check_in"]) and last.get("sp") is not None:
                 # Before check-in, the cleaner may still be working: put back exactly the guest
                 # setting chosen earlier (indoor readings mid-cleaning aren't a basis to re-decide).
-                desired, sp = last["mode"], last["sp"]
+                desired, sp = last["mode"], within_limits(t, last["mode"], last["sp"])
                 if t["mode"] == desired and current_sp(t) == sp:
                     tr["decision"] = f"before check-in: guest setting ({desired} to {sp}°) still in place"
                     continue
@@ -636,6 +646,7 @@ async def apply_changes(token: str, cfg: dict, changes: list[dict], now: datetim
             elif ch.get("from") and dev["mode"] != ch["from"]:
                 r.update(ok=False, error=f"stale: thermostat is now in {dev['mode']}, not {ch['from']}; not changed")
             else:
+                ch["sp"] = within_limits(dev, ch["mode"], ch["sp"])
                 err = await _write(conn, t["id"], dev["mode"], ch["mode"], ch["sp"], dev["scale"])
                 r.update(ok=err is None, error=err)
                 if err is None:
