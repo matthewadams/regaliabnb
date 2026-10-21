@@ -32,5 +32,10 @@
       ]
     }
   ],
-  "rules": {}
+  "rules": {
+    "vacant_check_hours": [
+      13,
+      21
+    ]
+  }
 }
