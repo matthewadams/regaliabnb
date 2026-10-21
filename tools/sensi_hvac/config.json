@@ -1,0 +1,36 @@
+{
+  "units": [
+    {
+      "name": "Carriage House",
+      "property_id": "4d468464-c5cb-4a35-97c9-09f3c01c8bfb",
+      "lat": 31.567966,
+      "lon": -91.4003393,
+      "thermostats": [
+        {
+          "id": "36-6f-92-ff-fe-30-32-4e",
+          "key": "CH",
+          "label": "thermostat"
+        }
+      ]
+    },
+    {
+      "name": "Mose Beer House",
+      "property_id": "69da4f03-c1c1-44f5-9c1a-9adf705aa16e",
+      "lat": 31.567935,
+      "lon": -91.400308,
+      "thermostats": [
+        {
+          "id": "36-6f-92-ff-fe-2f-1e-66",
+          "key": "MBK",
+          "label": "kitchen thermostat"
+        },
+        {
+          "id": "36-6f-92-ff-fe-32-d4-a9",
+          "key": "MBU",
+          "label": "upstairs thermostat"
+        }
+      ]
+    }
+  ],
+  "rules": {}
+}
