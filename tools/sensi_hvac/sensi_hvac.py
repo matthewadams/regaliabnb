@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Guest HVAC mode automation for Sensi thermostats in short-term rentals.
 
-Talks to Sensi's own cloud (the same, unofficial endpoints the Sensi app and the
-iprak/sensi Home Assistant integration use) -- no paid API. Reads the hourly
-forecast from the National Weather Service (free, no key).
+Rental policy on top of sensi_unofficial.py (Sensi access, which must sit next to this
+file). Reads the hourly forecast from the National Weather Service (free, no key).
 
 Handles every situation for each thermostat independently (no averaging):
   - guest stays: HEAT/COOL chosen from that thermostat's indoor reading and the
@@ -31,196 +30,13 @@ import asyncio
 import json
 import os
 import re
-import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-# --- Sensi endpoints (from iprak/sensi auth.py / client.py, v2.2.3) ----------
-OAUTH_URL = "https://oauth.sensiapi.io/token"
-OAUTH_CLIENT_ID = "fleet"
-OAUTH_CLIENT_SECRET = "JLFjJmketRhj>M9uoDhusYKyi?zUyNqhGB)H2XiwLEF#KcGKrRD2JZsDQ7ufNven"
-SOCKET_URL = "https://rt.sensiapi.io"
-SOCKET_QUERY = (
-    "?capabilities=display_humidity,operating_mode_settings,fan_mode_settings,"
-    "indoor_equipment,outdoor_equipment,indoor_stages,outdoor_stages,"
-    "continuous_backlight,degrees_fc,display_time,keypad_lockout,temp_offset,"
-    "compressor_lockout,boost,min_heat_setpoint,max_heat_setpoint,"
-    "min_cool_setpoint,max_cool_setpoint,lowest_heat_setpoint_ceiling,"
-    "heat_setpoint_ceiling,highest_cool_setpoint_floor,cool_setpoint_floor"
-)
-UA = "regalia-hvac-automation (matthew@matthewadams.me)"
-
-
-class AuthError(Exception):
-    pass
-
-
-# ============================================================================
-# Sensi auth: the refresh token from manager.sensicomfort.com (localStorage
-# "refreshToken") is a 10-year JWT that Sensi does not rotate; trade it for a
-# ~4-hour access token on every run.
-# ============================================================================
-def get_access_token(refresh_token: str) -> str:
-    if not refresh_token:
-        raise AuthError("No Sensi refresh token supplied")
-    body = urllib.parse.urlencode({
-        "client_id": OAUTH_CLIENT_ID,
-        "client_secret": OAUTH_CLIENT_SECRET,
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-    }).encode()
-    req = urllib.request.Request(OAUTH_URL, data=body, headers={
-        "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
-        "accept": "*/*", "accept-language": "en-US,en;q=0.9"})
-    try:
-        with urllib.request.urlopen(req, timeout=20) as r:
-            js = json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        if 400 <= e.code < 500:
-            raise AuthError(f"Sensi rejected the refresh token (HTTP {e.code}). Log in at "
-                            "manager.sensicomfort.com and copy localStorage 'refreshToken' "
-                            "into the scheduled task.") from e
-        raise
-    return js["access_token"]
-
-
-
-# ============================================================================
-# Sensi realtime (socket.io) client
-# ============================================================================
-class Sensi:
-    def __init__(self, access_token: str):
-        try:
-            import socketio  # python-socketio[asyncio_client]
-        except ImportError:  # installed lazily: only runs that must reach Sensi pay for it
-            import subprocess
-            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--break-system-packages",
-                            "python-socketio[asyncio_client]==5.16.3"], check=True,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            import socketio
-        self.sio = socketio.AsyncClient(reconnection=False)
-        self.token = access_token
-        self.devices: dict[str, dict] = {}
-        self.connect_error = None
-        self._got_state = asyncio.Event()
-
-        @self.sio.on("state")
-        async def _state(data):
-            for item in data or []:
-                icd = item.get("icd_id")
-                if not icd:
-                    continue
-                d = self.devices.setdefault(icd, {})
-                for k in ("registration", "capabilities", "state", "thermostat_info"):
-                    if item.get(k):
-                        if isinstance(item[k], dict) and isinstance(d.get(k), dict):
-                            d[k].update(item[k])
-                        else:
-                            d[k] = item[k]
-            if self.devices and all("state" in d and d["state"].get("operating_mode")
-                                    for d in self.devices.values()):
-                self._got_state.set()
-
-        @self.sio.on("connect_error")
-        async def _err(data):
-            self.connect_error = data
-
-    async def __aenter__(self):
-        await self.sio.connect(SOCKET_URL + SOCKET_QUERY,
-                               headers={"Authorization": "bearer " + self.token},
-                               socketio_path="/thermostat", transports=["websocket"],
-                               wait_timeout=20)
-        try:
-            await asyncio.wait_for(self._got_state.wait(), 25)
-        except asyncio.TimeoutError:
-            pass  # partial data; callers see missing state as offline
-        return self
-
-    async def __aexit__(self, *a):
-        try:
-            await asyncio.wait_for(self.sio.disconnect(), 10)
-        except Exception:
-            pass
-
-    async def _call(self, event: str, payload: dict, timeout: float = 15):
-        fut = asyncio.get_running_loop().create_future()
-
-        def cb(*args):
-            if fut.done():
-                return
-            if not args:
-                fut.set_result((None, {}))
-            elif len(args) >= 2:
-                fut.set_result((args[0], args[1]))
-            elif isinstance(args[0], dict) and "error" in args[0]:
-                fut.set_result((args[0], None))
-            else:
-                fut.set_result((None, args[0]))
-
-        await self.sio.emit(event, payload, callback=cb)
-        try:
-            err, data = await asyncio.wait_for(fut, timeout)
-        except asyncio.TimeoutError:
-            return f"timeout waiting for {event}", None
-        if err:
-            desc = err.get("error", {}).get("description") if isinstance(err, dict) else str(err)
-            return desc or str(err), None
-        return None, data
-
-    async def set_mode(self, icd: str, mode: str):
-        err, data = await self._call("set_operating_mode", {"icd_id": icd, "value": mode})
-        if err is None and isinstance(data, str) and data != "accepted":
-            err = data
-        return err
-
-    async def set_temp(self, icd: str, mode: str, temp: int, scale: str = "f"):
-        err, _ = await self._call("set_temperature", {"icd_id": icd, "scale": scale,
-                                                      "mode": mode, "target_temp": temp})
-        return err
-
-
-def summarize_device(icd: str, d: dict) -> dict:
-    st, cap, reg = d.get("state", {}), d.get("capabilities", {}), d.get("registration", {})
-
-    def num(x):
-        try:
-            return float(x) if x is not None else None
-        except (TypeError, ValueError):
-            return None
-    return {
-        "icd_id": icd,
-        "name": reg.get("name") or icd,
-        "product_type": reg.get("product_type"),
-        "address": " ".join(str(reg.get(k) or "") for k in ("address1", "address2", "city")).strip(),
-        "online": str(st.get("status", "")).lower() == "online",
-        "mode": st.get("operating_mode"),
-        "indoor_temp": num(st.get("display_temp")),
-        "humidity": num(st.get("humidity")),
-        "heat_setpoint": num(st.get("current_heat_temp")),
-        "cool_setpoint": num(st.get("current_cool_temp")),
-        "heat_ceiling": num(st.get("heat_max_temp")),   # guest can't heat above this
-        "cool_floor": num(st.get("cool_min_temp")),     # guest can't cool below this
-        "scale": (st.get("display_scale") or "f").lower(),
-        "hw_heat_range": [cap.get("min_heat_setpoint"), cap.get("max_heat_setpoint")],
-        "hw_cool_range": [cap.get("min_cool_setpoint"), cap.get("max_cool_setpoint")],
-        "modes_supported": [k for k, v in (cap.get("operating_mode_settings") or {}).items() if v == "yes"],
-        "keypad_lockout": st.get("partial_keypad_lockout") or st.get("keypad_lockout"),
-        "scheduling": st.get("scheduling"),
-    }
-
-
-async def sensi_status(access_token: str, raw: bool = False) -> list[dict]:
-    async with Sensi(access_token) as c:
-        devs = c.devices
-    out = [summarize_device(i, d) for i, d in devs.items()]
-    if raw:
-        for o in out:
-            o["raw"] = devs[o["icd_id"]]
-    return out
-
-
+from sensi_unofficial import (AuthError, Sensi, UA, _write, get_access_token,
+                               sensi_status, summarize_device)
 
 # ============================================================================
 # Weather (NWS)
@@ -770,16 +586,6 @@ def message_text(items: list[dict], n_in_unit: int, first_name: str | None) -> s
 def load(p):
     with open(p) as f:
         return json.load(f)
-
-
-async def _write(conn, t_id: str, cur_mode: str, mode: str, sp: int, scale: str):
-    err = None
-    if cur_mode != mode:
-        err = await conn.set_mode(t_id, mode)
-        await asyncio.sleep(1.5)
-    if not err:
-        err = await conn.set_temp(t_id, mode, int(sp), scale)
-    return err
 
 
 async def sensi_session(token: str, cfg, now, occ, forecasts, dry_run):
