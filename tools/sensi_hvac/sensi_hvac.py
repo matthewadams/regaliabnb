@@ -569,12 +569,6 @@ def owed_message(c, tz, local, quiet, unit, res, switches, msgs, now, dry_run,
             "note_tag_after_send": None if dry_run else msg_tag(local, [i["key"] for i in ordered])}, None
 
 
-def _limit_phrase(mode: str, lim) -> str:
-    if lim is None:
-        return ""
-    return f" (you can go as low as {lim}°)" if mode == "cool" else f" (you can go as high as {lim}°)"
-
-
 def _names(labels: list[str]) -> str:
     if len(labels) == 1:
         return f"the {labels[0]}"
@@ -584,28 +578,23 @@ def _names(labels: list[str]) -> str:
     return "the " + ", ".join(labels[:-1]) + " and the " + labels[-1]
 
 
+def _join(parts: list[str]) -> str:
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
+
+
 def message_text(items: list[dict], n_in_unit: int, first_name: str | None) -> str:
+    """Short and sweet, by the host's wording. Deliberately no setpoints and no guest limits."""
     hi = f"Hi {first_name}" if first_name else "Hi"
     modes = {i["mode"] for i in items}
-    why = ("with the weather warming up" if modes == {"cool"} else
-           "with the weather cooling off" if modes == {"heat"} else "to keep every part of the house comfortable")
-    same = len({(i["mode"], i.get("sp"), i.get("lim")) for i in items}) == 1
-    if same:
-        i = items[0]
-        sp = f", set to {i['mode']} to {i['sp']}°" if i.get("sp") is not None else ""
-        body = (f"{why}, we've switched {_names([x['label'] for x in items])} to {i['mode'].upper()} mode{sp}. "
-                f"You can raise or lower the setting right on the thermostat{'s' if len(items) > 1 else ''}"
-                f"{_limit_phrase(i['mode'], i.get('lim'))}.")
+    if len(modes) == 1:
+        body = (f"with the weather changing, we’ve switched {_names([x['label'] for x in items])} "
+                f"to {items[0]['mode']} mode for you.")
     else:
-        lines = []
-        for i in items:
-            sp = f", set to {i['mode']} to {i['sp']}°" if i.get("sp") is not None else ""
-            lines.append(f"The {i['label']} is now in {i['mode'].upper()} mode{sp}"
-                         f"{_limit_phrase(i['mode'], i.get('lim'))}.")
-        body = (f"{why}, we've adjusted the thermostats. " + " ".join(lines) +
-                " You can raise or lower each setting right on that thermostat.")
-    return (f"{hi}, quick heads-up: {body} If you'd prefer a different mode, just message us here "
-            "and we'll switch it for you. Enjoy your stay!")
+        each = [f"the {i['label']} is now in {i['mode']} mode" for i in items]
+        each[0] = each[0][0].upper() + each[0][1:]
+        body = ("to keep every part of the house comfortable, we’ve adjusted the thermostats. "
+                + _join(each) + ".")
+    return f"{hi}, quick heads-up: {body} Manually adjust as you wish."
 
 
 # ============================================================================
