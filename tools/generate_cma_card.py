@@ -25,7 +25,9 @@ Card spec (JSON via --data):
      "comps": [["Kelly Kottage", 476], ["Cozy Historic Cottage", 427]]}
   ],
   "direct_line": "BOOK DIRECT: $770 BEFORE TAX  ·  $34 LESS THAN AIRBNB",  # optional
-  "cta": "LOWEST PRICE · BOOK ON AIRBNB"
+  "cta": "LOWEST PRICE · BOOK ON AIRBNB",
+  "url": "go.regaliabnb.com/mbh",   # optional: booking link printed under the CTA
+  "theme": 2                          # optional: 0-3 font pairing (else derived from seed)
 }
 """
 import argparse, json, random
@@ -151,6 +153,8 @@ def make_cma_card(data, out, seed=None, scheme=None):
     idx = resolve_scheme(scheme)
     s = SCHEMES[idx] if idx is not None else rng.choice(SCHEMES)
     th = rng.choice(THEMES)
+    if data.get("theme") not in (None, ""):
+        th = THEMES[int(data["theme"]) % len(THEMES)]
     ink, acc, bg = s["ink"], s["acc"], s["bg"]
 
     img = Image.new("RGB", (W, H), bg)
@@ -196,7 +200,8 @@ def make_cma_card(data, out, seed=None, scheme=None):
     dl = data.get("direct_line")
     two = len(panels) == 2
     show_sav = two and not dl          # per-panel savings only add value on 2-up w/o direct
-    ptop = 626 if two else 632
+    url = data.get("url", "")
+    ptop = (626 if two else 632) - (28 if url else 0)   # lift block when a URL line is added
     if two:
         d.line([(cx, ptop + 4), (cx, ptop + 210)], fill=blend(acc, bg, .3), width=1)
         draw_panel(d, int(W * 0.28), ptop, panels[0], th, s, show_sav)
@@ -206,7 +211,7 @@ def make_cma_card(data, out, seed=None, scheme=None):
 
     # position direct line / footnote / cta
     if two and show_sav:
-        foot_y, cta_y = 866, 936
+        foot_y, cta_y = (852, 914) if url else (866, 936)
     else:
         pb = ptop + 182
         y = pb + 12
@@ -230,6 +235,12 @@ def make_cma_card(data, out, seed=None, scheme=None):
     if cta:
         csz = fit(d, cta, th["head"], W - 2 * (m + 26), 30, 18, 2)
         draw_tracked(d, (cx, cta_y), cta, fnt(th["head"], csz), acc, 2, "c")
+
+    # booking URL (optional) -- shown under the CTA so the link is on the card itself
+    if url:
+        uy = cta_y + 46
+        usz = fit(d, url.upper(), th["head"], W - 2 * (m + 26), 30, 16, 2)
+        draw_tracked(d, (cx, uy), url.upper(), fnt(th["head"], usz), ink, 2, "c")
 
     img.convert("P", palette=Image.ADAPTIVE, colors=32).save(out, optimize=True)
     return out
